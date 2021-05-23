@@ -1,0 +1,239 @@
+{
+	"name": "SparkMovies",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "SampleSpark",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/94acf58b-09b7-4185-b5ab-eaf474a49970/resourceGroups/synapse-rg/providers/Microsoft.Synapse/workspaces/synapse-cluster-1/bigDataPools/SampleSpark",
+				"name": "SampleSpark",
+				"type": "Spark",
+				"endpoint": "https://synapse-cluster-1.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/SampleSpark",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 3,
+				"cores": 8,
+				"memory": 56,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Read data from  ADFS Gen2 Movies Directory"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"\r\n",
+					"# Primary storage info\r\n",
+					"account_name = 'sparksynapse21' # fill in your primary account name\r\n",
+					"container_name = 'clusterdata' # fill in your container name\r\n",
+					"movies_path = 'ml-25m' \r\n",
+					"\r\n",
+					"adls_movies_path = 'abfss://%s@%s.dfs.core.windows.net/%s' % (container_name, account_name, movies_path)\r\n",
+					"print('Primary storage account for movies path: ' + adls_movies_path)\r\n",
+					""
+				],
+				"attachments": null,
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": true
+				},
+				"source": [
+					"df_movies = spark.read.csv(adls_movies_path + \"/movies/*\", header='true', inferSchema='true')\r\n",
+					"df_movies.printSchema()"
+				],
+				"attachments": null,
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": true
+				},
+				"source": [
+					"df_ratings = spark.read.csv(adls_movies_path + \"/ratings/*\", header='true', inferSchema='true')\r\n",
+					"#df_ratings.printSchema()\r\n",
+					"df_ratings.show(5)"
+				],
+				"attachments": null,
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": true
+				},
+				"source": [
+					"import pyspark.sql.functions as f\r\n",
+					"\r\n",
+					"df_ratings_1 = df_ratings.withColumn('datetime',f.to_timestamp('timestamp')).\\\r\n",
+					"withColumn('year',f.year('datetime')).\\\r\n",
+					"withColumn('month',f.month('datetime'))\r\n",
+					"df_ratings_1.show(3)"
+				],
+				"attachments": null,
+				"execution_count": 22
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": true
+				},
+				"source": [
+					"df_ratings_1.write.parquet(adls_movies_path + \"/ratings.parquet\", mode='overwrite', partitionBy=('year','month'))"
+				],
+				"attachments": null,
+				"execution_count": 24
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": true
+				},
+				"source": [
+					"df_ratings_1.printSchema()"
+				],
+				"attachments": null,
+				"execution_count": 25
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": true
+				},
+				"source": [
+					"spark.sql(\"CREATE TABLE ratings (userId INT, movieId INT, rating DOUBLE, timestamp INT ) \\\r\n",
+					"USING PARQUET  LOCATION \\'/ml-25m/ratings.parquet/year=*/month=*/*.parquet\\' \\\r\n",
+					"OPTIONS (\\'compression\\'=\\'snappy\\')\")"
+				],
+				"attachments": null,
+				"execution_count": 23
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"select rating, count(*) from ratings group by rating"
+				],
+				"attachments": null,
+				"execution_count": 25
+			}
+		]
+	}
+}

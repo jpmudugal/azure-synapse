@@ -1,0 +1,17 @@
+{
+	"name": "SQLMOvies",
+	"properties": {
+		"content": {
+			"query": "\n -- Create database\nCREATE DATABASE MovieDataExplorationDB \n                COLLATE Latin1_General_100_BIN2_UTF8\n\n -- Create External data source\n\nuse MovieDataExplorationDB;\n\nCREATE EXTERNAL DATA SOURCE MovieLake\nWITH ( LOCATION = 'https://sparksynapse21.dfs.core.windows.net/ml-25m')\n\n\nIF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'SynapseParquetFormat')\n\tCREATE EXTERNAL FILE FORMAT [SynapseParquetFormat]\n\tWITH ( FORMAT_TYPE = PARQUET)\nGO\n\n\nIF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'movies_azureopendatastorage_blob_core_windows_net')\n\tCREATE EXTERNAL DATA SOURCE [movies_azureopendatastorage_blob_core_windows_net]\n\tWITH (\n\t\tLOCATION   = 'https://sparksynapse21.blob.core.windows.net/clusterdata/ml-25m',\n\t)\nGo\n\n\nCREATE EXTERNAL TABLE movie_ratings_new_all2 (\n\t[userId] int,\n\t[movieId] int,\n\t[rating] float,\n\t[timestamp] int,\n\t)\n\tWITH (\n    LOCATION = 'ratings.parquet/year=2005/month=*/*.parquet',\n\tDATA_SOURCE = [movies_azureopendatastorage_blob_core_windows_net],\n\tFILE_FORMAT = [SynapseParquetFormat]\n\t)\nGO\n\nselect top 10 * from MovieDataExplorationDB.dbo.movie_ratings_new_all2\n\nselect count(*) from movie_ratings_new_all2\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"poolName": "Built-in",
+				"databaseName": "default"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
